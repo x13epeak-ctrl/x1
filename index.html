@@ -1,0 +1,161 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#080808">
+<title>x13e Music</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#080808;color:white;font-family:Arial,sans-serif;padding:20px}
+header{display:flex;justify-content:space-between;align-items:center;margin:12px 0 30px}
+.logo{font-size:34px;font-weight:900;color:#20d760;letter-spacing:-2px}
+.tag{color:#aaa;font-size:12px}
+h2{font-size:23px;margin-top:30px}
+.sub{color:#aaa;font-size:14px}
+.search{width:100%;padding:16px;border:1px solid #333;border-radius:13px;background:#171717;color:white;font-size:16px;margin:15px 0}
+.add{display:block;text-align:center;background:#20d760;color:#071008;padding:16px;border-radius:13px;font-weight:bold;cursor:pointer;margin:15px 0}
+input[type=file]{display:none}
+.track{background:#171717;padding:14px;border-radius:13px;margin:10px 0;display:flex;align-items:center;gap:12px}
+.cover{width:48px;height:48px;background:#252525;border-radius:9px;display:grid;place-items:center;font-size:23px;flex-shrink:0}
+.info{flex:1;min-width:0}
+.info b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.info small{color:#aaa}
+.track button{background:none;border:0;color:white;font-size:21px;cursor:pointer}
+#player{position:fixed;bottom:0;left:0;right:0;background:#171717;border-top:1px solid #333;padding:17px 20px 25px;box-shadow:0 -5px 25px #000}
+#now{font-size:14px;text-align:center;margin-bottom:12px}
+input[type=range]{width:100%;accent-color:#20d760}
+.controls{display:flex;justify-content:center;align-items:center;gap:35px;margin-top:10px}
+.controls button{background:none;color:white;border:0;font-size:27px;cursor:pointer}
+.controls .main{background:#20d760;color:black;width:52px;height:52px;border-radius:50%;font-size:23px}
+main{padding-bottom:190px}
+.empty{text-align:center;color:#777;padding:35px 10px}
+</style>
+</head>
+<body>
+<header>
+<div>
+<div class="logo">x13e</div>
+<div class="tag">YOUR MUSIC. YOUR WORLD.</div>
+</div>
+<div style="color:#20d760;font-size:25px">♫</div>
+</header>
+
+<main>
+<h2>أهلاً بيك في x13e 🎧</h2>
+<p class="sub">موسيقاك في مكان واحد.</p>
+
+<input class="search" id="search" placeholder="ابحث عن أغنية..." oninput="render()">
+
+<label class="add" for="files">＋ أضف أغاني من موبايلك</label>
+<input id="files" type="file" accept="audio/*" multiple>
+
+<h2>مكتبة الموسيقى</h2>
+<div id="list"><div class="empty">اختار أغانيك وابدأ الاستماع 🎵</div></div>
+
+<h2>المفضلة ♥</h2>
+<div id="favorites"><div class="empty">الأغاني المفضلة هتظهر هنا</div></div>
+</main>
+
+<div id="player">
+<div id="now">لم يتم اختيار أغنية</div>
+<input type="range" id="progress" min="0" max="100" value="0">
+<div style="display:flex;justify-content:space-between;color:#aaa;font-size:11px">
+<span id="current">0:00</span><span id="duration">0:00</span>
+</div>
+<div class="controls">
+<button onclick="previous()">⏮</button>
+<button class="main" id="play" onclick="toggle()">▶</button>
+<button onclick="next()">⏭</button>
+</div>
+</div>
+
+<audio id="audio"></audio>
+
+<script>
+const audio=document.getElementById('audio');
+let songs=[],current=-1;
+let favorites=JSON.parse(localStorage.getItem('x13e-favorites')||'[]');
+
+function format(t){
+if(!Number.isFinite(t))return '0:00';
+return Math.floor(t/60)+':'+String(Math.floor(t%60)).padStart(2,'0');
+}
+
+document.getElementById('files').addEventListener('change',e=>{
+const files=[...e.target.files];
+files.forEach(file=>{
+songs.push({
+name:file.name.replace(/\.[^/.]+$/,''),
+url:URL.createObjectURL(file),
+id:Date.now()+Math.random()
+});
+});
+render();
+e.target.value='';
+});
+
+function render(){
+const q=document.getElementById('search').value.toLowerCase();
+const list=document.getElementById('list');
+const fav=document.getElementById('favorites');
+
+function cards(items){
+if(!items.length)return '<div class="empty">مفيش أغاني هنا لسه 🎵</div>';
+return items.map(s=>{
+const i=songs.indexOf(s);
+return `<div class="track">
+<div class="cover">♫</div>
+<div class="info"><b>${escapeHTML(s.name)}</b><small>ملف موسيقى</small></div>
+<button onclick="playSong(${i})">▶</button>
+<button onclick="favorite(${i})">${favorites.includes(s.id)?'♥':'♡'}</button>
+</div>`;
+}).join('');
+}
+list.innerHTML=cards(songs.filter(s=>s.name.toLowerCase().includes(q)));
+fav.innerHTML=cards(songs.filter(s=>favorites.includes(s.id)));
+}
+
+function escapeHTML(s){
+return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function playSong(i){
+if(i<0||i>=songs.length)return;
+current=i;
+audio.src=songs[i].url;
+audio.play();
+document.getElementById('now').textContent=songs[i].name;
+document.getElementById('play').textContent='Ⅱ';
+}
+
+function toggle(){
+if(current===-1){if(songs.length)playSong(0);return;}
+if(audio.paused){audio.play();document.getElementById('play').textContent='Ⅱ';}
+else{audio.pause();document.getElementById('play').textContent='▶';}
+}
+
+function next(){if(songs.length)playSong((current+1)%songs.length);}
+function previous(){if(songs.length)playSong((current-1+songs.length)%songs.length);}
+
+function favorite(i){
+if(i<0)return;
+const id=songs[i].id;
+favorites=favorites.includes(id)?favorites.filter(x=>x!==id):[...favorites,id];
+localStorage.setItem('x13e-favorites',JSON.stringify(favorites));
+render();
+}
+
+audio.addEventListener('ended',next);
+audio.addEventListener('timeupdate',()=>{
+document.getElementById('progress').value=audio.duration?audio.currentTime/audio.duration*100:0;
+document.getElementById('current').textContent=format(audio.currentTime);
+document.getElementById('duration').textContent=format(audio.duration);
+});
+document.getElementById('progress').addEventListener('input',e=>{
+if(audio.duration)audio.currentTime=e.target.value/100*audio.duration;
+});
+</script>
+</body>
+</html>
